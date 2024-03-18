@@ -35,7 +35,7 @@ Init ==
     /\ floor2Door = CLOSED
     /\ floor3Door = CLOSED
     /\ floor4Door = CLOSED
-    /\ timeRemaining = 3
+    /\ timeRemaining = 5
 
 \* increment remaining time by one second
 (*
@@ -90,7 +90,6 @@ floor4Request == \* add floor to Q FIFO
     /\ UNCHANGED <<running, currentFloor, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door, timeRemaining >>
 
 moveUp ==
-    \*currentFloor' = currentFloor + 1
     IF requestQueue # << >> THEN
         IF Head(requestQueue) > currentFloor THEN 
         \/  /\ currentFloor' = currentFloor + 1     \*move up 1
@@ -101,15 +100,23 @@ moveUp ==
         ELSE UNCHANGED <<running, currentFloor, requestQueue, queueSize, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door, timeRemaining >>
     ELSE UNCHANGED <<running, currentFloor, requestQueue, queueSize, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door, timeRemaining >>
 
-moveUp ==
-    \*currentFloor' = currentFloor + 1
+moveDown ==
     IF requestQueue # << >> THEN
-        IF Head(requestQueue) > currentFloor THEN 
-        \/  /\ currentFloor' = currentFloor + 1     \*move up 1
-            /\ currentFloor' < MAXFLOOR    \* until reach max
+        IF Head(requestQueue) < currentFloor THEN 
+        \/  /\ currentFloor' = currentFloor - 1     \*move up 1
+            /\ currentFloor' > MINFLOOR    \* until reach max
             /\ UNCHANGED <<running, requestQueue, queueSize, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door, timeRemaining >>
-        \/  /\ currentFloor >= MAXFLOOR  
+        \/  /\ currentFloor <= MINFLOOR  
             /\ UNCHANGED <<running, currentFloor, requestQueue, queueSize, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door, timeRemaining >>
+        ELSE UNCHANGED <<running, currentFloor, requestQueue, queueSize, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door, timeRemaining >>
+    ELSE UNCHANGED <<running, currentFloor, requestQueue, queueSize, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door, timeRemaining >>
+
+checkQueue ==
+    IF requestQueue # << >> THEN
+        IF currentFloor = Head(requestQueue) THEN 
+            /\ requestQueue' = Tail(requestQueue)
+            /\ timeRemaining' = 5
+            /\ UNCHANGED <<running, currentFloor, queueSize, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door >>
         ELSE UNCHANGED <<running, currentFloor, requestQueue, queueSize, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door, timeRemaining >>
     ELSE UNCHANGED <<running, currentFloor, requestQueue, queueSize, cabinDoor, floor1Door, floor2Door, floor3Door, floor4Door, timeRemaining >>
 
@@ -127,13 +134,16 @@ Next ==
     \/ floor2Request
     \/ floor3Request
     \/ floor4Request
-    \/ moveUp
+    \/ moveUp /\ Tick
+    \/ moveDown /\ Tick
+    \/ checkQueue
     \*\/ Tick
 
 Spec == Init /\ [][Next]_vars /\ TickProgress
 
 \*DoorSafety == TRUE
-DoorSafety == queueSize < MaxQueue
+\*DoorSafety == queueSize < MaxQueue
+DoorSafety == timeRemaining > 0
 
 \* DoorSafety == door = OPEN => running = OFF
 
